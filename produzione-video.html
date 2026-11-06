@@ -48,13 +48,16 @@
   </div>
 </div>
 <main id="main">
-<section class="phero">
-  <img class="phero__img" src="assets/img/camera-monitor-s.webp" srcset="assets/img/camera-monitor-s.webp 900w, assets/img/camera-monitor.webp 1800w" sizes="100vw" width="828" height="552" alt="Monitor di una videocamera che inquadra un concerto" fetchpriority="high">
-  <div class="wrap phero__copy">
+<section class="spot spot--page" data-spot data-x="0.45" data-y="0.42" aria-labelledby="page-t">
+  <div class="spot__img" style="background-image:url('assets/img/camera-monitor.webp')" role="img" aria-label="Monitor di una videocamera che inquadra un concerto"></div>
+  <div class="spot__lit" style="background-image:url('assets/img/camera-monitor.webp')" aria-hidden="true"></div>
+  <div class="spot__haze" aria-hidden="true"></div>
+  <div class="spot__shade" aria-hidden="true"></div>
+  <div class="wrap spot__copy">
     <a class="crumb" href="index.html">ML Production</a>
-    <h1 class="display">Produzione video</h1>
-    <p class="lead">L'immagine giusta per ogni evento: live production, streaming e contenuti che lasciano il segno.</p>
-    <div class="btns"><a class="btn" href="#contatti">Richiedi un preventivo</a></div>
+    <h1 class="display" id="page-t">Produzione video</h1>
+    <p class="lead spot__reveal">L'immagine giusta per ogni evento: live production, streaming e contenuti che lasciano il segno.</p>
+    <div class="btns spot__reveal"><a class="btn" href="#contatti">Richiedi un preventivo</a></div>
   </div>
 </section>
 
@@ -171,7 +174,7 @@
         <li><a href="chi-siamo.html">Chi siamo</a></li>
       </ul></div>
     </div>
-    <p class="foot__word" aria-hidden="true">ML Production</p>
+    <p class="foot__word" aria-hidden="true"><span class="w-out">ML Production</span><span class="w-fill">ML Production</span></p>
     <div class="foot__base">
       <span>© <span data-year>2026</span> ML Production. Tutti i diritti riservati.</span>
       <span>Service audio, luci e video. Milano e dintorni.</span>

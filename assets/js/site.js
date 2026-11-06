@@ -44,88 +44,233 @@
     });
   }
 
-  /* ---------- occhio di bue ---------- */
-  var spot = document.querySelector("[data-spot]");
-  if (spot) {
-    var cx = 0.62, cy = 0.42;        // posizione attuale (0..1)
-    var tx = cx, ty = cy;            // obiettivo
-    var r = 0, targetR = 0;
-    var lastMove = -1e9, visible = true;
-    var t0 = performance.now();
+  /* ---------- occhio di bue ----------
+     Strati: foto al buio, foto illuminata (maschera radiale), fascio volumetrico
+     (canvas a bassa risoluzione + sfocatura CSS = bordi morbidi, fumo in movimento),
+     polvere che brilla solo dentro il fascio. */
+  var TUNG = "255,206,156";
 
+  function makeNoise() {
+    // fumo: rumore a macchie, scalato più volte e sovrapposto
+    var c = document.createElement("canvas"); c.width = c.height = 256;
+    var x = c.getContext("2d");
+    [6, 12, 24, 48].forEach(function (n, i) {
+      var t = document.createElement("canvas"); t.width = t.height = n;
+      var tx = t.getContext("2d"), d = tx.createImageData(n, n);
+      for (var k = 0; k < d.data.length; k += 4) { var v = Math.random() * 255; d.data[k] = d.data[k + 1] = d.data[k + 2] = 255; d.data[k + 3] = v; }
+      tx.putImageData(d, 0, 0);
+      x.globalAlpha = [0.7, 0.45, 0.3, 0.2][i];
+      x.imageSmoothingEnabled = true; x.imageSmoothingQuality = "high";
+      x.drawImage(t, 0, 0, 256, 256);
+    });
+    // alpha minima: il fascio non sparisce mai del tutto
+    x.globalAlpha = 1; x.globalCompositeOperation = "destination-over";
+    x.fillStyle = "rgba(255,255,255,.5)"; x.fillRect(0, 0, 256, 256);
+    return c;
+  }
+
+  function initSpot(spot) {
+    var page = spot.classList.contains("spot--page");
+    var ox = parseFloat(spot.getAttribute("data-x") || "0.6");
+    var oy = parseFloat(spot.getAttribute("data-y") || "0.42");
+    var cx = ox, cy = oy, tx = cx, ty = cy;
+    var r = 0, targetR = 0, lastMove = -1e9, visible = true, lit = false;
+    var t0 = performance.now() - Math.random() * 20000;
+    var W = 0, H = 0;
+
+    var beam = document.createElement("canvas"); beam.className = "spot__beam"; beam.setAttribute("aria-hidden", "true");
+    var dust = document.createElement("canvas"); dust.className = "spot__dust"; dust.setAttribute("aria-hidden", "true");
+    var haze = spot.querySelector(".spot__haze");
+    spot.insertBefore(beam, haze); spot.insertBefore(dust, haze);
+    var bx = beam.getContext("2d"), dx = dust.getContext("2d");
+    var BS = 0.25;                                  // risoluzione del fascio
+    var DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+    var noise = makeNoise(), pattern = bx.createPattern(noise, "repeat");
+    var parts = [];
+
+    function size() {
+      W = spot.clientWidth; H = spot.clientHeight;
+      beam.width = Math.max(1, Math.round(W * BS)); beam.height = Math.max(1, Math.round(H * BS));
+      dust.width = Math.round(W * DPR); dust.height = Math.round(H * DPR);
+      var n = Math.round(W * H / (reduce ? 14000 : 7000));
+      parts = [];
+      for (var i = 0; i < n; i++) parts.push({
+        x: Math.random() * W, y: Math.random() * H,
+        vx: (Math.random() - 0.5) * 0.12, vy: -0.03 - Math.random() * 0.12,
+        s: 0.5 + Math.pow(Math.random(), 3) * 2.6, p: Math.random() * 6.28, f: 0.4 + Math.random() * 1.4
+      });
+      if (lit) targetR = baseR();
+    }
     function baseR() {
-      var w = spot.clientWidth, h = spot.clientHeight;
-      return Math.max(170, Math.min(w, h) * (w < 760 ? 0.48 : 0.36));
+      var m = Math.min(W, H);
+      return Math.max(160, m * (W < 760 ? 0.5 : page ? 0.42 : 0.37));
+    }
+    // sorgente: torre luci in alto a destra, fuori campo
+    function source() { return { x: W * 0.9, y: -H * 0.18 }; }
+
+    function geometry() {
+      var S = source(), px = cx * W, py = cy * H;
+      var ddx = px - S.x, ddy = py - S.y, len = Math.hypot(ddx, ddy) || 1;
+      return { S: S, C: { x: px, y: py }, ux: ddx / len, uy: ddy / len, len: len, a: W * 0.006 + 4, R: r * 0.7 };
     }
 
+    function drawBeam(g, now) {
+      var k = BS, S = g.S, C = g.C, nx = -g.uy, ny = g.ux;
+      bx.setTransform(1, 0, 0, 1, 0, 0);
+      bx.globalCompositeOperation = "source-over";
+      bx.clearRect(0, 0, beam.width, beam.height);
+      if (r < 2) return;
+      bx.setTransform(k, 0, 0, k, 0, 0);
+      var grad = bx.createLinearGradient(S.x, S.y, C.x, C.y);
+      grad.addColorStop(0, "rgba(" + TUNG + ",1)");
+      grad.addColorStop(0.08, "rgba(" + TUNG + ",0.5)");
+      grad.addColorStop(0.55, "rgba(" + TUNG + ",0.34)");
+      grad.addColorStop(0.9, "rgba(" + TUNG + ",0.1)");
+      grad.addColorStop(1, "rgba(" + TUNG + ",0.04)");
+      // più passate di larghezza crescente: il bordo sfuma invece di tagliare
+      [[1.55, 0.22], [1.25, 0.32], [1.0, 0.45], [0.7, 0.55], [0.4, 0.45]].forEach(function (pp) {
+        var R = g.R * pp[0], a = g.a * pp[0];
+        bx.globalAlpha = pp[1];
+        bx.fillStyle = grad;
+        bx.beginPath();
+        bx.moveTo(S.x + nx * a, S.y + ny * a);
+        bx.lineTo(C.x + nx * R, C.y + ny * R);
+        bx.arc(C.x, C.y, R, Math.atan2(ny, nx), Math.atan2(-ny, -nx), true);
+        bx.lineTo(S.x - nx * a, S.y - ny * a);
+        bx.closePath();
+        bx.fill();
+      });
+      // fumo che scorre dentro il fascio
+      var t = (now - t0) / 1000;
+      bx.globalAlpha = 1;
+      bx.globalCompositeOperation = "destination-in";
+      if (pattern && pattern.setTransform && window.DOMMatrix) {
+        pattern.setTransform(new DOMMatrix().translate(t * 9 % 2048, -t * 14 % 2048).scale(1.5));
+        bx.fillStyle = pattern;
+        bx.fillRect(0, 0, W, H);
+        bx.globalCompositeOperation = "source-over";
+      }
+      bx.globalCompositeOperation = "source-over";
+    }
+
+    function inBeam(g, x, y) {
+      var px = x - g.S.x, py = y - g.S.y;
+      var along = px * g.ux + py * g.uy;
+      if (along < 0) return 0;
+      var tt = along / g.len;
+      if (tt > 1.08) return 0;
+      var lat = Math.abs(px * -g.uy + py * g.ux);
+      var half = g.a + (g.R * 1.1 - g.a) * Math.min(tt, 1);
+      var e = lat / half;
+      if (e >= 1) return 0;
+      var soft = 1 - e * e;
+      return soft * (0.35 + 0.65 * Math.min(tt, 1));
+    }
+
+    function drawDust(g, now, dt) {
+      dx.setTransform(1, 0, 0, 1, 0, 0);
+      dx.clearRect(0, 0, dust.width, dust.height);
+      if (r < 2) return;
+      dx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      var t = now / 1000;
+      for (var i = 0; i < parts.length; i++) {
+        var p = parts[i];
+        if (!reduce) {
+          p.x += (p.vx + Math.sin(t * 0.3 + p.p) * 0.05) * dt;
+          p.y += p.vy * dt;
+          if (p.y < -4) { p.y = H + 4; p.x = Math.random() * W; }
+          if (p.x < -4) p.x = W + 4; else if (p.x > W + 4) p.x = -4;
+        }
+        var b = inBeam(g, p.x, p.y);
+        if (b < 0.02) continue;
+        var tw = 0.55 + 0.45 * Math.sin(t * p.f + p.p);
+        dx.fillStyle = "rgba(255,232,205," + (b * tw).toFixed(3) + ")";
+        dx.beginPath(); dx.arc(p.x, p.y, p.s, 0, 6.2832); dx.fill();
+      }
+    }
+
+    var last = performance.now();
     function frame(now) {
+      var dt = Math.min(3, (now - last) / 16.7); last = now;
       if (visible) {
         var idle = now - lastMove > 2600 || !finePointer;
         if (idle) {
-          // l'operatore cerca il cantante: percorso lento e organico
-          var t = (now - t0) / 1000;
-          tx = 0.58 + Math.sin(t * 0.37) * 0.2 + Math.sin(t * 0.91) * 0.04;
-          ty = 0.40 + Math.sin(t * 0.53 + 1.2) * 0.12;
+          // l'operatore cerca l'artista: percorso lento e organico
+          var t = (now - t0) / 1000, amp = page ? 0.12 : 0.2;
+          tx = ox + Math.sin(t * 0.37) * amp + Math.sin(t * 0.91) * 0.03;
+          ty = oy + Math.sin(t * 0.53 + 1.2) * amp * 0.55;
         }
-        var k = idle ? 0.03 : 0.12;
-        cx += (tx - cx) * k;
-        cy += (ty - cy) * k;
-        r += (targetR - r) * 0.08;
+        var kk = idle ? 0.03 : 0.12;
+        cx += (tx - cx) * kk * dt; cy += (ty - cy) * kk * dt;
+        r += (targetR - r) * Math.min(1, 0.09 * dt);
         spot.style.setProperty("--x", (cx * 100).toFixed(2) + "%");
         spot.style.setProperty("--y", (cy * 100).toFixed(2) + "%");
         spot.style.setProperty("--r", r.toFixed(1) + "px");
-        // fascio: dalla torre in alto a destra al cerchio di luce
-        var w = spot.clientWidth, h = spot.clientHeight;
-        var sx = w * 0.92, sy = -h * 0.12, px = cx * w, py = cy * h;
-        var dx = px - sx, dy = py - sy, len = Math.hypot(dx, dy) || 1;
-        var nx = -dy / len, ny = dx / len, rr = r * 0.62;
-        spot.style.setProperty("--beam", "polygon(" +
-          (sx + nx * 8).toFixed(0) + "px " + (sy + ny * 8).toFixed(0) + "px," +
-          (sx - nx * 8).toFixed(0) + "px " + (sy - ny * 8).toFixed(0) + "px," +
-          (px - nx * rr).toFixed(0) + "px " + (py - ny * rr).toFixed(0) + "px," +
-          (px + nx * rr).toFixed(0) + "px " + (py + ny * rr).toFixed(0) + "px)");
+        var g = geometry();
+        drawBeam(g, now);
+        drawDust(g, now, dt);
       }
-      requestAnimationFrame(frame);
+      if (!reduce) requestAnimationFrame(frame);
     }
 
     function strike() {
-      // accensione: tremolio della lampada, poi pieno
       if (reduce) {
-        targetR = baseR(); r = targetR;
-        spot.style.setProperty("--r", r + "px");
-        spot.classList.add("is-lit");
-        return;
+        lit = true; targetR = r = baseR(); spot.classList.add("is-lit"); frame(performance.now()); return;
       }
-      var seq = [0.25, 0, 0.5, 0.1, 1];
-      var i = 0;
+      // accensione: la lampada sfarfalla, poi si stabilizza
+      var seq = [0.3, 0, 0.55, 0.12, 1], i = 0;
       (function step() {
         var v = seq[i++];
-        targetR = baseR() * v;
-        r = targetR * (v ? 0.92 : 0);
-        if (i < seq.length) setTimeout(step, i < 3 ? 90 : 140);
-        else spot.classList.add("is-lit");
+        targetR = baseR() * v; r = targetR * (v ? 0.9 : 0);
+        if (i < seq.length) setTimeout(step, i < 3 ? 80 : 130);
+        else { lit = true; spot.classList.add("is-lit"); }
       })();
     }
 
     spot.addEventListener("pointermove", function (e) {
       if (e.pointerType !== "mouse") return;
       var b = spot.getBoundingClientRect();
-      tx = (e.clientX - b.left) / b.width;
-      ty = (e.clientY - b.top) / b.height;
+      tx = (e.clientX - b.left) / b.width; ty = (e.clientY - b.top) / b.height;
       lastMove = performance.now();
     });
-    window.addEventListener("resize", function () { if (spot.classList.contains("is-lit")) targetR = baseR(); });
+    window.addEventListener("resize", size);
+    if ("IntersectionObserver" in window) new IntersectionObserver(function (en) { visible = en[0].isIntersecting; }).observe(spot);
 
-    if ("IntersectionObserver" in window) {
-      new IntersectionObserver(function (en) { visible = en[0].isIntersecting; }).observe(spot);
-    }
+    size();
+    if (reduce) strike();
+    else { requestAnimationFrame(frame); setTimeout(strike, page ? 250 : 450); }
+  }
+  document.querySelectorAll("[data-spot]").forEach(initSpot);
 
-    if (reduce) {
-      strike();
-    } else {
-      requestAnimationFrame(frame);
-      setTimeout(strike, 450);
+  /* ---------- foto "sul campo": si accendono al centro dello schermo ---------- */
+  document.querySelectorAll(".reel").forEach(function (reel) {
+    var figs = reel.querySelectorAll("figure"), tr = reel.querySelector(".reel__track"), queued = false;
+    function upd() {
+      queued = false;
+      var vw = window.innerWidth;
+      figs.forEach(function (f) {
+        var b = f.getBoundingClientRect();
+        var d = Math.abs(b.left + b.width / 2 - vw / 2) / (vw * 0.55);
+        var l = Math.max(0, Math.min(1, 1.25 - d));
+        f.style.setProperty("--lit", l.toFixed(3));
+      });
     }
+    function q() { if (!queued) { queued = true; requestAnimationFrame(upd); } }
+    tr.addEventListener("scroll", q, { passive: true });
+    window.addEventListener("resize", q);
+    upd();
+  });
+
+  /* ---------- scritta del footer illuminata dal cursore ---------- */
+  var word = document.querySelector(".foot__word");
+  if (word && finePointer) {
+    var foot = word.closest("footer");
+    foot.addEventListener("mousemove", function (e) {
+      var b = word.getBoundingClientRect();
+      word.style.setProperty("--fx", (e.clientX - b.left) + "px");
+      word.style.setProperty("--fy", (e.clientY - b.top) + "px");
+    });
+    foot.addEventListener("mouseleave", function () { word.style.setProperty("--fx", "-999px"); });
   }
 
   /* ---------- servizi: anteprima che segue il cursore ---------- */

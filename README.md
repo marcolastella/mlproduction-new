@@ -21,7 +21,7 @@ Sito statico di ML Production (service audio, luci e video per eventi). HTML, CS
 - `assets/js/site.js`: occhio di bue, menu mobile, anteprime dei servizi, striscia foto, lightbox e modulo contatti.
 - `assets/img/`: foto in WebP. Ogni foto ha due versioni: `nome.webp` (1800 px) e `nome-s.webp` (900 px).
 - `assets/img/logos/`: loghi dei marchi dell'attrezzatura.
-- `assets/fonts/`: Archivo, ospitato in locale (nessuna chiamata a Google Fonts, meglio per la privacy e il GDPR). Licenza SIL Open Font License.
+- `assets/fonts/`: Michroma per i titoli (famiglia Microgramma/Eurostile, lo stile di QSC) e Archivo per i testi, ospitati in locale (nessuna chiamata a Google Fonts, meglio per la privacy e il GDPR). Entrambi con licenza SIL Open Font License. Se acquisti la licenza web di Eurostile Extended, basta sostituire i file Michroma e il nome in `--display` dentro `site.css`.
 
 ## Modifiche frequenti
 

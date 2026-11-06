@@ -48,13 +48,16 @@
   </div>
 </div>
 <main id="main">
-<section class="phero">
-  <img class="phero__img" src="assets/img/console-crew-s.webp" srcset="assets/img/console-crew-s.webp 900w, assets/img/console-crew.webp 1800w" sizes="100vw" width="1800" height="1200" alt="Marco e Luca al mixer in sala prima del concerto" fetchpriority="high">
-  <div class="wrap phero__copy">
+<section class="spot spot--page" data-spot data-x="0.55" data-y="0.4" aria-labelledby="page-t">
+  <div class="spot__img" style="background-image:url('assets/img/console-crew.webp')" role="img" aria-label="Marco e Luca al mixer in sala prima del concerto"></div>
+  <div class="spot__lit" style="background-image:url('assets/img/console-crew.webp')" aria-hidden="true"></div>
+  <div class="spot__haze" aria-hidden="true"></div>
+  <div class="spot__shade" aria-hidden="true"></div>
+  <div class="wrap spot__copy">
     <a class="crumb" href="index.html">ML Production</a>
-    <h1 class="display">Service eventi</h1>
-    <p class="lead">Allestimenti e service audio, luci e video per concerti, fiere, convegni e feste private.</p>
-    <div class="btns"><a class="btn" href="#contatti">Richiedi un preventivo</a></div>
+    <h1 class="display" id="page-t">Service eventi</h1>
+    <p class="lead spot__reveal">Allestimenti e service audio, luci e video per concerti, fiere, convegni e feste private.</p>
+    <div class="btns spot__reveal"><a class="btn" href="#contatti">Richiedi un preventivo</a></div>
   </div>
 </section>
 
@@ -194,7 +197,7 @@
         <li><a href="chi-siamo.html">Chi siamo</a></li>
       </ul></div>
     </div>
-    <p class="foot__word" aria-hidden="true">ML Production</p>
+    <p class="foot__word" aria-hidden="true"><span class="w-out">ML Production</span><span class="w-fill">ML Production</span></p>
     <div class="foot__base">
       <span>© <span data-year>2026</span> ML Production. Tutti i diritti riservati.</span>
       <span>Service audio, luci e video. Milano e dintorni.</span>
