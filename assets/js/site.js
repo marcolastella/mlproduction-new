@@ -369,7 +369,7 @@
         }
         err.hidden = true;
         var url = b.getAttribute("data-send") === "wa"
-          ? "https://wa.me/393273740925?text=" + encodeURIComponent(m.text)
+          ? "https://wa.me/393470569495?text=" + encodeURIComponent(m.text)
           : "mailto:info@mlproduction.it?subject=" + encodeURIComponent("Richiesta preventivo da " + m.name) + "&body=" + encodeURIComponent(m.text);
         window.location.href = url;
       });
