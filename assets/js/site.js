@@ -293,7 +293,7 @@
         peek.classList.add("is-on");
       });
     });
-    faders.addEventListener("mousemove", function (e) { px = e.clientX + 40; py = e.clientY; });
+    faders.addEventListener("mousemove", function (e) { px = e.clientX + 60; py = e.clientY; });
     faders.addEventListener("mouseleave", function () { peek.classList.remove("is-on"); running = false; });
   }
 

@@ -318,7 +318,7 @@ p:last-child { margin-bottom: 0; }
 @media (max-width: 900px) { .manifesto { grid-template-columns: 1fr; } }
 
 /* servizi come fader */
-.faders { border-top: 1px solid var(--line); position: relative; }
+.faders { border-top: 1px solid var(--line); position: relative; z-index: 2; }
 .fader {
   position: relative; display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 30ch) 56px;
@@ -329,7 +329,7 @@ p:last-child { margin-bottom: 0; }
 }
 .fader::before {
   content: ""; position: absolute; inset: 0 calc(var(--gutter) * -1); z-index: -1;
-  background: var(--red);
+  background: rgba(204, 0, 51, .78);
   transform: scaleY(0); transform-origin: bottom;
   transition: transform .45s var(--ease);
 }
@@ -346,15 +346,37 @@ p:last-child { margin-bottom: 0; }
 .fader:hover .fader__go, .fader:focus-visible .fader__go { background: var(--white); color: var(--red); }
 .fader__thumb { display: none; }
 
+/* anteprima = cerchio di luce morbido che segue il cursore */
 .peek {
-  position: fixed; left: 0; top: 0; z-index: 30; pointer-events: none;
-  width: clamp(220px, 22vw, 340px); aspect-ratio: 4 / 5; overflow: hidden;
-  opacity: 0; transform: translate(-50%, -50%) scale(.85);
-  transition: opacity .25s, transform .35s var(--ease);
+  position: fixed; left: 0; top: 0; z-index: 1; pointer-events: none;
+  width: clamp(300px, 29vw, 460px); aspect-ratio: 1;
+  opacity: 0; transform: translate(-50%, -50%) scale(.6);
+  transition: opacity .35s, transform .5s var(--ease);
 }
 .peek.is-on { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-.peek img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .25s; }
-.peek img.is-on { opacity: 1; }
+/* alone caldo intorno al cerchio, come la luce che diffonde nel fumo */
+.peek::before {
+  content: ""; position: absolute; inset: -22%; border-radius: 50%;
+  background: radial-gradient(circle closest-side, rgba(var(--tungsten), .34), rgba(var(--tungsten), .1) 55%, transparent 100%);
+  mix-blend-mode: screen;
+}
+.peek__lens {
+  position: absolute; inset: 0;
+  -webkit-mask-image: radial-gradient(circle closest-side, #000 0%, #000 50%, rgba(0,0,0,.6) 72%, transparent 100%);
+          mask-image: radial-gradient(circle closest-side, #000 0%, #000 50%, rgba(0,0,0,.6) 72%, transparent 100%);
+}
+.peek img {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  opacity: 0; transform: scale(1.08); transition: opacity .3s, transform .6s var(--ease);
+  filter: brightness(1.3) contrast(1.08);
+}
+.peek img.is-on { opacity: 1; transform: scale(1); }
+/* punto caldo al centro del fascio */
+.peek__lens::after {
+  content: ""; position: absolute; inset: 0;
+  background: radial-gradient(circle closest-side at 45% 42%, rgba(var(--tungsten), .28), transparent 70%);
+  mix-blend-mode: screen;
+}
 
 @media (max-width: 860px) {
   .fader { grid-template-columns: minmax(0, 1fr) 48px; }
